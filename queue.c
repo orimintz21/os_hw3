@@ -1,11 +1,12 @@
 #include "queue.h"
 #include <pthread.h>
 #include <stdbool.h>
+#include "request_struct.h"
 
 Queue *queueCreate(int max_size)
 {
     Queue *queue = malloc(sizeof(Queue));
-    queue->data = malloc(max_size * sizeof(int));
+    queue->data = malloc(max_size * sizeof(RequestStruct *));
     queue->front = 0;
     queue->rear = 0;
     queue->max_size = max_size;
@@ -22,7 +23,7 @@ void queueDestroy(Queue *queue)
     free(queue);
 }
 
-bool enqueue(Queue *queue, int value)
+bool enqueue(Queue *queue, RequestStruct *value)
 {
     pthread_mutex_lock(&queue->mutex);
     if ((queue->rear + 1) % queue->max_size == queue->front)
@@ -38,7 +39,7 @@ bool enqueue(Queue *queue, int value)
     return true;
 }
 
-int dequeue(Queue *queue)
+RequestStruct *dequeue(Queue *queue)
 {
     pthread_mutex_lock(&queue->mutex);
     while (queue->front == queue->rear)
@@ -47,7 +48,7 @@ int dequeue(Queue *queue)
         pthread_cond_wait(&queue->cond, &queue->mutex);
     }
 
-    int value = queue->data[queue->front];
+    RequestStruct *value = queue->data[queue->front];
     queue->front = (queue->front + 1) % queue->max_size;
     pthread_mutex_unlock(&queue->mutex);
     return value;

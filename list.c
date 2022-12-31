@@ -2,6 +2,7 @@
 #include "list.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include "request_struct.h"
 
 // Initialize a linked list
 LinkedList *listCreate()
@@ -29,7 +30,7 @@ void listDestroy(LinkedList *list)
 }
 
 // Insert a new node at the beginning of the linked list
-void listAdd(LinkedList *list, int data)
+void listAdd(LinkedList *list, RequestStruct *data)
 {
     pthread_mutex_lock(&list->lock);
     Node *newNode = (Node *)malloc(sizeof(Node));
@@ -40,7 +41,7 @@ void listAdd(LinkedList *list, int data)
 }
 
 // Remove a node with the specified data value from the linked list
-void removeNode(LinkedList *list, int data)
+void removeNode(LinkedList *list, RequestStruct *data)
 {
     pthread_mutex_lock(&list->lock);
     Node *prev = NULL;

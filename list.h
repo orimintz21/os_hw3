@@ -2,10 +2,10 @@
 #define LIST_H
 
 #include <pthread.h>
-
+#include "request_struct.h"
 typedef struct Node
 {
-    int data;
+    RequestStruct *data;
     struct Node *next;
 } Node;
 
@@ -17,7 +17,7 @@ typedef struct LinkedList
 
 LinkedList *listCreate();
 void listDestroy(LinkedList *list);
-void listAdd(LinkedList *list, int data);
-void removeNode(LinkedList *list, int data);
+void listAdd(LinkedList *list, RequestStruct *data);
+void removeNode(LinkedList *list, RequestStruct *data);
 
 #endif // LIST_H

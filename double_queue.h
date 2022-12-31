@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <stdbool.h>
+#include "request_struct.h"
 
 typedef enum
 {
@@ -29,8 +30,9 @@ typedef struct
 
 DQueueu *dqueueuCreate(int max_size, Policy policy);
 void dqueueuDestroy(DQueueu *dqueueu);
-void addToWaitingQueue(DQueueu *dqueueu, int connfd);
-int addToRunningList(DQueueu *dqueueu);
+void addToWaitingQueue(DQueueu *dqueueu, RequestStruct *data);
+RequestStruct *addToRunningList(DQueueu *dqueueu);
 void removeFromWaiting(DQueueu *dqueueu);
+void removeFromRunning(DQueueu *dqueueu, RequestStruct *data);
 
 #endif // DOUBLE_QUEUE_H

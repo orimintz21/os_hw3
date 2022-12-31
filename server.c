@@ -5,6 +5,7 @@
 #include "queue.h"
 #include "double_queue.h"
 #include <string.h>
+#include "request_struct.h"
 //
 // server.c: A very, very simple web server
 //
@@ -16,6 +17,11 @@
 //
 
 // HW3: Parse the new arguments too
+typedef struct
+{
+    int id;
+    DQueueu *request;
+} threadArgs;
 
 void getargs(int *port, int *thread_count, int *queue_size, Policy *policy, int argc, char *argv[])
 {
@@ -50,13 +56,34 @@ void getargs(int *port, int *thread_count, int *queue_size, Policy *policy, int 
     }
 }
 
-void *thread_func(void *request)
+void *thread_func(void *t_args)
 {
+    threadArgs *args = (threadArgs *)t_args;
+    DQueueu *request = args->request;
+    int id = args->id;
+    int count = 0;
+    struct timeval start_time;
+    struct timeval end_time;
+    int static_count = 0;
+    int dynamic_count = 0;
     while (true)
     {
-        int connfd = addToRunningList((DQueueu *)request);
-        requestHandle(connfd);
-        removeFromRunnig((DQueueu *)request, connfd);
+        RequestStruct *data = addToRunningList(request);
+        int connfd = data->connfd;
+        start_time = data->arrival_time;
+        int is_static = requestHandle(connfd);
+        gettimeofday(&end_time, NULL);
+        double elapsed = (end_time.tv_sec - start_time.tv_sec) + (end_time.tv_usec - start_time.tv_usec);
+        if (is_static == 0)
+        {
+            static_count++;
+        }
+        else if (is_static == 1)
+        {
+            dynamic_count++;
+        }
+        ++count;
+        removeFromRunnig(request, data);
         Close(connfd);
     }
     return NULL;
@@ -71,11 +98,14 @@ int main(int argc, char *argv[])
 
     getargs(&port, &thread_count, &queue_size, &policy, argc, argv);
 
-    DQueueu *request = dqueueuCreate(queue_size, policy);
+    DQueueu *requests = dqueueuCreate(queue_size, policy);
     pthread_t threads[thread_count];
     for (int i = 0; i < thread_count; ++i)
     {
-        pthread_create(&threads[i], NULL, thread_func, (void *)request);
+        threadArgs t_args;
+        t_args.id = i;
+        t_args.request = requests;
+        pthread_create(&threads[i], NULL, thread_func, (void *)(&t_args));
     }
 
     listenfd = Open_listenfd(port);
@@ -83,7 +113,11 @@ int main(int argc, char *argv[])
     {
         clientlen = sizeof(clientaddr);
         connfd = Accept(listenfd, (SA *)&clientaddr, (socklen_t *)&clientlen);
-        addToWaitingQueue(request, connfd);
+
+        RequestStruct *request = malloc(sizeof(RequestStruct));
+        request->connfd = connfd;
+        gettimeofday(&request->arrival_time, NULL);
+        addToWaitingQueue(requests, request);
 
         //
         // HW3: In general, don't handle the request in the main thread.

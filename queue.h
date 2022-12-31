@@ -4,10 +4,11 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <stdbool.h>
+#include "request_struct.h"
 
 typedef struct
 {
-    int *data;
+    RequestStruct **data;
     int front;
     int rear;
     int max_size;
@@ -18,6 +19,6 @@ typedef struct
 
 Queue *queueCreate(int max_size);
 void queueDestroy(Queue *queue);
-bool enqueue(Queue *queue, int data);
-int dequeue(Queue *queue);
+bool enqueue(Queue *queue, RequestStruct *data);
+RequestStruct *dequeue(Queue *queue);
 #endif // QUEUE_H

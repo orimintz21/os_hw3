@@ -26,7 +26,7 @@ void dqueueuDestroy(DQueueu *dqueueu)
     free(dqueueu);
 }
 
-void addToWaitingQueue(DQueueu *dqueueu, int connfd)
+void addToWaitingQueue(DQueueu *dqueueu, RequestStruct *data)
 {
     pthread_mutex_lock(&dqueueu->mutex);
     if (dqueueu->count == dqueueu->max_size)
@@ -39,7 +39,7 @@ void addToWaitingQueue(DQueueu *dqueueu, int connfd)
                 pthread_cond_wait(&dqueueu->mutex, &dqueueu->cond);
             break;
         case DT:
-            Close(connfd);
+            Close(data->connfd);
             break;
         case DH:
             dequeue(dqueueu->waiting_queue);
@@ -54,7 +54,7 @@ void addToWaitingQueue(DQueueu *dqueueu, int connfd)
             exit(1);
         }
     }
-    bool ans = enqueue(dqueueu->waiting_queue, connfd);
+    bool ans = enqueue(dqueueu->waiting_queue, data);
     if (ans)
     {
         dqueueu->count++;
@@ -63,20 +63,21 @@ void addToWaitingQueue(DQueueu *dqueueu, int connfd)
     return ans;
 }
 
-int addToRunningList(DQueueu *dqueueu)
+RequestStruct *addToRunningList(DQueueu *dqueueu)
 {
     pthread_mutex_lock(&dqueueu->mutex);
-    int connfd = dequeue(dqueueu->waiting_queue);
-    listAdd(dqueueu->running_list, connfd);
+    RequestStruct *data = dequeue(dqueueu->waiting_queue);
+    listAdd(dqueueu->running_list, data);
     pthread_mutex_unlock(&dqueueu->mutex);
-    return connfd;
+    return data;
 }
 
-void removeFromRunnig(DQueueu *dqueueu, int connfd)
+void removeFromRunnig(DQueueu *dqueueu, RequestStruct *data)
 {
     pthread_mutex_lock(&dqueueu->mutex);
     dqueueu->count--;
-    removeNode(dqueueu->running_list, connfd);
+    removeNode(dqueueu->running_list, data);
+    free(data);
     pthread_cond_signal(&dqueueu->cond);
     pthread_mutex_unlock(&dqueueu->mutex);
 }
