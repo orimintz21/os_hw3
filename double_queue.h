@@ -8,21 +8,29 @@
 #include <pthread.h>
 #include <stdbool.h>
 
+typedef enum
+{
+    BLOCK,
+    DT,
+    DH,
+    RANDOM
+} Policy;
 typedef struct
 {
     Queue *waiting_queue;
     LinkedList *running_list;
     int max_size;
+    Policy policy;
     int count;
     pthread_mutex_t mutex;
     pthread_cond_t cond;
 
 } DQueueu;
 
-DQueueu *dqueueuCreate(int max_size);
+DQueueu *dqueueuCreate(int max_size, Policy policy);
 void dqueueuDestroy(DQueueu *dqueueu);
-bool addToWaitingQueue(DQueueu *dqueueu, int connfd);
+void addToWaitingQueue(DQueueu *dqueueu, int connfd);
 int addToRunningList(DQueueu *dqueueu);
-void removeFromRunnig(DQueueu *dqueueu, int connfd);
+void removeFromWaiting(DQueueu *dqueueu);
 
 #endif // DOUBLE_QUEUE_H
