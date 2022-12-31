@@ -17,14 +17,6 @@
 
 // HW3: Parse the new arguments too
 
-typedef enum
-{
-    BLOCK,
-    DT,
-    DH,
-    RANDOM
-} Policy;
-
 void getargs(int *port, int *thread_count, int *queue_size, Policy *policy, int argc, char *argv[])
 {
     if (argc != 5)
@@ -35,19 +27,19 @@ void getargs(int *port, int *thread_count, int *queue_size, Policy *policy, int 
     *port = atoi(argv[1]);
     *thread_count = atoi(argv[2]);
     *queue_size = atoi(argv[3]);
-    if (strcmp(argv[4], "BLOCK") == 0)
+    if (strcmp(argv[4], "block") == 0)
     {
         *policy = BLOCK;
     }
-    else if (strcmp(argv[4], "DT") == 0)
+    else if (strcmp(argv[4], "dt") == 0)
     {
         *policy = DT;
     }
-    else if (strcmp(argv[4], "DH") == 0)
+    else if (strcmp(argv[4], "dh") == 0)
     {
         *policy = DH;
     }
-    else if (strcmp(argv[4], "RANDOM") == 0)
+    else if (strcmp(argv[4], "random") == 0)
     {
         *policy = RANDOM;
     }
@@ -67,6 +59,7 @@ void *thread_func(void *request)
         removeFromRunnig((DQueueu *)request, connfd);
         Close(connfd);
     }
+    return NULL;
 }
 
 int main(int argc, char *argv[])
@@ -78,42 +71,20 @@ int main(int argc, char *argv[])
 
     getargs(&port, &thread_count, &queue_size, &policy, argc, argv);
 
-    //
-    // HW3: Create some threads...
-    //
-    DQueueu *request = dqueueuCreate(queue_size);
+    DQueueu *request = dqueueuCreate(queue_size, policy);
     pthread_t threads[thread_count];
     for (int i = 0; i < thread_count; ++i)
     {
         pthread_create(&threads[i], NULL, thread_func, (void *)request);
     }
-    // Queue *waiting_requests = queueCreate(queue_size);
-    // Queue *running_requests = queueCreate(thread_count);
 
     listenfd = Open_listenfd(port);
     while (1)
     {
         clientlen = sizeof(clientaddr);
         connfd = Accept(listenfd, (SA *)&clientaddr, (socklen_t *)&clientlen);
-        if (!addToWaitingQueue(request, connfd))
-        {
-            // Queue is full
-            switch (policy)
-            {
-            case BLOCK:
-                /* code */
-                break;
-            case DT:
-                /* code */
-                break;
-            case DH:
-                /* code */
-                break;
-            default:
-                break;
-            }
-            Close(connfd);
-        }
+        addToWaitingQueue(request, connfd);
+
         //
         // HW3: In general, don't handle the request in the main thread.
         // Save the relevant info in a buffer and have one of the worker threads
