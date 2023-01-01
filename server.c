@@ -5,6 +5,7 @@
 #include "double_queue.h"
 #include <string.h>
 #include "request_struct.h"
+#include "stats.h"
 //
 // server.c: A very, very simple web server
 //
@@ -19,7 +20,7 @@
 typedef struct
 {
     int id;
-    DQueueu *request;
+    DQueue *request;
 } threadArgs;
 
 void getargs(int *port, int *thread_count, int *queue_size, Policy *policy, int argc, char *argv[])
@@ -58,31 +59,25 @@ void getargs(int *port, int *thread_count, int *queue_size, Policy *policy, int 
 void *thread_func(void *t_args)
 {
     threadArgs *args = (threadArgs *)t_args;
-    DQueueu *request = args->request;
-    int id = args->id;
-    int count = 0;
-    struct timeval start_time;
+    DQueue *request = args->request;
+    Stats stats;
+    stats.count = 0;
+    stats.static_count = 0;
+    stats.dynamic_count = 0;
+    stats.id = args->id;
     struct timeval end_time;
-    int static_count = 0;
-    int dynamic_count = 0;
+
     while (1)
     {
         RequestStruct *data = addToRunningList(request);
-        int connfd = data->connfd;
-        start_time = data->arrival_time;
-        int is_static = requestHandle(connfd);
         gettimeofday(&end_time, NULL);
-        double elapsed = (end_time.tv_sec - start_time.tv_sec) + (end_time.tv_usec - start_time.tv_usec);
-        if (is_static == 0)
-        {
-            static_count++;
-        }
-        else if (is_static == 1)
-        {
-            dynamic_count++;
-        }
-        ++count;
-        removeFromRunnig(request, data);
+        int connfd = data->connfd;
+        stats.arrival_time = data->arrival_time;
+        stats.dispatch_time.tv_sec = end_time.tv_sec - stats.arrival_time.tv_sec;
+        stats.dispatch_time.tv_usec = end_time.tv_usec - stats.arrival_time.tv_usec;
+
+        requestHandle(connfd, &stats);
+        removeFromRunning(request, data);
         Close(connfd);
     }
     return NULL;
@@ -90,14 +85,14 @@ void *thread_func(void *t_args)
 
 int main(int argc, char *argv[])
 {
+
     int listenfd, connfd, port, clientlen, thread_count, queue_size;
     struct sockaddr_in clientaddr;
-
     Policy policy = BLOCK;
 
     getargs(&port, &thread_count, &queue_size, &policy, argc, argv);
 
-    DQueueu *requests = dqueueuCreate(queue_size, policy);
+    DQueue *requests = dqueueCreate(queue_size, policy);
     pthread_t threads[thread_count];
     for (int i = 0; i < thread_count; ++i)
     {

@@ -4,79 +4,88 @@
 #include <pthread.h>
 #include "segel.h"
 
-DQueueu *dqueueuCreate(int max_size, Policy policy)
+DQueue *dqueueCreate(int max_size, Policy policy)
 {
-    DQueueu *dqueueu = malloc(sizeof(DQueueu));
-    dqueueu->waiting_queue = queueCreate(max_size);
-    dqueueu->running_list = listCreate();
-    dqueueu->count = 0;
-    dqueueu->max_size = max_size;
-    dqueueu->policy = policy;
-    pthread_mutex_init(&dqueueu->mutex, NULL);
-    pthread_cond_init(&dqueueu->cond, NULL);
-    return dqueueu;
+    DQueue *dqueue = malloc(sizeof(DQueue));
+    dqueue->waiting_queue = queueCreate(max_size);
+    dqueue->running_list = listCreate();
+    dqueue->count = 0;
+    dqueue->max_size = max_size;
+    dqueue->policy = policy;
+    pthread_mutex_init(&dqueue->mutex, NULL);
+    pthread_cond_init(&dqueue->not_empty, NULL);
+    pthread_cond_init(&dqueue->not_full, NULL);
+    return dqueue;
 };
 
-void dqueueuDestroy(DQueueu *dqueueu)
+void dqueueDestroy(DQueue *dqueue)
 {
-    pthread_cond_destroy(&dqueueu->cond);
-    pthread_mutex_destroy(&dqueueu->mutex);
-    queueDestroy(dqueueu->waiting_queue);
-    listDestroy(dqueueu->running_list);
-    free(dqueueu);
+    pthread_cond_destroy(&dqueue->not_full);
+    pthread_cond_destroy(&dqueue->not_empty);
+    pthread_mutex_destroy(&dqueue->mutex);
+    queueDestroy(dqueue->waiting_queue);
+    listDestroy(dqueue->running_list);
+    free(dqueue);
 }
 
-void addToWaitingQueue(DQueueu *dqueueu, RequestStruct *data)
+void addToWaitingQueue(DQueue *dqueue, RequestStruct *data)
 {
-    pthread_mutex_lock(&dqueueu->mutex);
-    if (dqueueu->count == dqueueu->max_size)
+    pthread_mutex_lock(&dqueue->mutex);
+    int removed = 0;
+
+    if (dqueue->count == dqueue->max_size)
     {
         // Queue is full
-        switch (dqueueu->policy)
+        switch (dqueue->policy)
         {
         case BLOCK:
-            while (dqueueu->count == dqueueu->max_size)
-                pthread_cond_wait(&dqueueu->mutex, &dqueueu->cond);
+            while (dqueue->count == dqueue->max_size)
+                pthread_cond_wait(&dqueue->not_full, &dqueue->mutex);
             break;
         case DT:
             Close(data->connfd);
             break;
         case DH:
-            dequeue(dqueueu->waiting_queue);
-            dqueueu->count--;
+            dequeue(dqueue->waiting_queue);
+            dqueue->count--;
             break;
         case RANDOM:
-
+            removed = removeRandom(dqueue->waiting_queue);
+            dqueue->count -= removed;
             break;
         default:
             perror("Policy not found\n");
-            pthread_mutex_unlock(&dqueueu->mutex);
+            pthread_mutex_unlock(&dqueue->mutex);
             exit(1);
         }
     }
-    int ans = enqueue(dqueueu->waiting_queue, data);
+
+    int ans = enqueue(dqueue->waiting_queue, data);
     if (ans)
     {
-        dqueueu->count++;
+        dqueue->count++;
     }
-    pthread_mutex_unlock(&dqueueu->mutex);
+    pthread_cond_signal(&dqueue->not_empty);
+    pthread_mutex_unlock(&dqueue->mutex);
 }
 
-RequestStruct *addToRunningList(DQueueu *dqueueu)
+RequestStruct *addToRunningList(DQueue *dqueue)
 {
-    pthread_mutex_lock(&dqueueu->mutex);
-    RequestStruct *data = dequeue(dqueueu->waiting_queue);
-    listAdd(dqueueu->running_list, data);
-    pthread_mutex_unlock(&dqueueu->mutex);
+    pthread_mutex_lock(&dqueue->mutex);
+    while (dqueue->count == 0)
+        pthread_cond_wait(&dqueue->not_empty, &dqueue->mutex);
+    RequestStruct *data = dequeue(dqueue->waiting_queue);
+    listAdd(dqueue->running_list, data);
+    pthread_mutex_unlock(&dqueue->mutex);
     return data;
 }
 
-void removeFromRunnig(DQueueu *dqueueu, RequestStruct *data)
+void removeFromRunning(DQueue *dqueue, RequestStruct *data)
 {
-    pthread_mutex_lock(&dqueueu->mutex);
-    dqueueu->count--;
-    removeNode(dqueueu->running_list, data);
+    pthread_mutex_lock(&dqueue->mutex);
+    dqueue->count--;
+    removeNode(dqueue->running_list, data);
     free(data);
-    pthread_cond_signal(&dqueueu->cond);
-    pthread_mutex_unlock(&dqueueu->mutex);
+    pthread_cond_signal(&dqueue->not_full);
+    pthread_mutex_unlock(&dqueue->mutex);
 }

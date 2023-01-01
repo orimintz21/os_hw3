@@ -50,6 +50,7 @@ void clientPrint(int fd)
   int n;
 
   Rio_readinitb(&rio, fd);
+
   /* Read and display the HTTP Header */
   n = Rio_readlineb(&rio, buf, MAXBUF);
   while (strcmp(buf, "\r\n") && (n > 0))

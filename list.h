@@ -12,7 +12,7 @@ typedef struct Node
 typedef struct LinkedList
 {
     Node *head;
-    pthread_mutex_t lock;
+    // pthread_mutex_t lock;
 } LinkedList;
 
 LinkedList *listCreate();

@@ -561,6 +561,7 @@ int open_listenfd(int port)
 int Open_clientfd(char *hostname, int port)
 {
     int rc;
+
     if ((rc = open_clientfd(hostname, port)) < 0)
     {
         if (rc == -1)

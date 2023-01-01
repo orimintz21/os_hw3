@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include "request_struct.h"
+#include <stdbool.h>
 
 typedef struct
 {
@@ -11,8 +12,8 @@ typedef struct
     int front;
     int rear;
     int max_size;
-    pthread_mutex_t mutex;
-    pthread_cond_t cond;
+    // pthread_mutex_t mutex;
+    // pthread_cond_t cond;
 
 } Queue;
 
@@ -20,4 +21,7 @@ Queue *queueCreate(int max_size);
 void queueDestroy(Queue *queue);
 int enqueue(Queue *queue, RequestStruct *data);
 RequestStruct *dequeue(Queue *queue);
+int removeRandom(Queue *queue);
+bool isEmpty(Queue *queue);
+
 #endif // QUEUE_H

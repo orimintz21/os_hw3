@@ -23,15 +23,16 @@ typedef struct
     Policy policy;
     int count;
     pthread_mutex_t mutex;
-    pthread_cond_t cond;
+    pthread_cond_t not_empty;
+    pthread_cond_t not_full;
 
-} DQueueu;
+} DQueue;
 
-DQueueu *dqueueuCreate(int max_size, Policy policy);
-void dqueueuDestroy(DQueueu *dqueueu);
-void addToWaitingQueue(DQueueu *dqueueu, RequestStruct *data);
-RequestStruct *addToRunningList(DQueueu *dqueueu);
-void removeFromWaiting(DQueueu *dqueueu);
-void removeFromRunning(DQueueu *dqueueu, RequestStruct *data);
+DQueue *dqueueCreate(int max_size, Policy policy);
+void dqueueDestroy(DQueue *dqueue);
+void addToWaitingQueue(DQueue *dqueue, RequestStruct *data);
+RequestStruct *addToRunningList(DQueue *dqueue);
+void removeFromWaiting(DQueue *dqueue);
+void removeFromRunning(DQueue *dqueue, RequestStruct *data);
 
 #endif // DOUBLE_QUEUE_H
