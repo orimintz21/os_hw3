@@ -3,7 +3,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
-#include <stdbool.h>
 #include "request_struct.h"
 
 typedef struct
@@ -19,6 +18,6 @@ typedef struct
 
 Queue *queueCreate(int max_size);
 void queueDestroy(Queue *queue);
-bool enqueue(Queue *queue, RequestStruct *data);
+int enqueue(Queue *queue, RequestStruct *data);
 RequestStruct *dequeue(Queue *queue);
 #endif // QUEUE_H

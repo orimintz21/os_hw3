@@ -1,7 +1,6 @@
 #include "segel.h"
 #include "request.h"
 #include <pthread.h>
-#include <stdbool.h>
 #include "queue.h"
 #include "double_queue.h"
 #include <string.h>
@@ -66,7 +65,7 @@ void *thread_func(void *t_args)
     struct timeval end_time;
     int static_count = 0;
     int dynamic_count = 0;
-    while (true)
+    while (1)
     {
         RequestStruct *data = addToRunningList(request);
         int connfd = data->connfd;

@@ -54,13 +54,12 @@ void addToWaitingQueue(DQueueu *dqueueu, RequestStruct *data)
             exit(1);
         }
     }
-    bool ans = enqueue(dqueueu->waiting_queue, data);
+    int ans = enqueue(dqueueu->waiting_queue, data);
     if (ans)
     {
         dqueueu->count++;
     }
     pthread_mutex_unlock(&dqueueu->mutex);
-    return ans;
 }
 
 RequestStruct *addToRunningList(DQueueu *dqueueu)
