@@ -33,19 +33,20 @@ void getargs(int *port, int *thread_count, int *queue_size, Policy *policy, int 
     *port = atoi(argv[1]);
     *thread_count = atoi(argv[2]);
     *queue_size = atoi(argv[3]);
-    if (strcmp(argv[4], "block") == 0)
+    char *policy_str = argv[4];
+    if (strcmp(policy_str, "block") == 0)
     {
         *policy = BLOCK;
     }
-    else if (strcmp(argv[4], "dt") == 0)
+    else if (strcmp(policy_str, "dt") == 0)
     {
         *policy = DT;
     }
-    else if (strcmp(argv[4], "dh") == 0)
+    else if (strcmp(policy_str, "dh") == 0)
     {
         *policy = DH;
     }
-    else if (strcmp(argv[4], "random") == 0)
+    else if (strcmp(policy_str, "random") == 0)
     {
         *policy = RANDOM;
     }
@@ -59,7 +60,7 @@ void getargs(int *port, int *thread_count, int *queue_size, Policy *policy, int 
 void *thread_func(void *t_args)
 {
     threadArgs *args = (threadArgs *)t_args;
-    DQueue *request = args->request;
+    DQueue *dqueue = args->request;
     Stats stats;
     stats.count = 0;
     stats.static_count = 0;
@@ -69,15 +70,20 @@ void *thread_func(void *t_args)
 
     while (1)
     {
-        RequestStruct *data = addToRunningList(request, args->id);
+        pthread_mutex_lock(&dqueue->mutex);
+        RequestStruct *data = addToRunningList(dqueue, stats.id);
         gettimeofday(&end_time, NULL);
         int connfd = data->connfd;
         stats.arrival_time = data->arrival_time;
         timersub(&end_time, &stats.arrival_time, &stats.dispatch_time);
+        pthread_mutex_unlock(&dqueue->mutex);
 
         requestHandle(connfd, &stats);
-        removeFromRunning(request, args->id);
-        Close(connfd);
+        // Close(connfd);
+        pthread_mutex_lock(&dqueue->mutex);
+        removeFromRunning(dqueue, stats.id);
+        pthread_cond_signal(&dqueue->not_full);
+        pthread_mutex_unlock(&dqueue->mutex);
     }
     return NULL;
 }
@@ -91,12 +97,12 @@ int main(int argc, char *argv[])
 
     getargs(&port, &thread_count, &queue_size, &policy, argc, argv);
 
-    DQueue *requests = dqueueCreate(queue_size, policy, thread_count);
+    DQueue *dqueue = dqueueCreate(queue_size, policy, thread_count);
     threadArgs t_args[thread_count];
     for (int i = 0; i < thread_count; ++i)
     {
         t_args[i].id = i;
-        t_args[i].request = requests;
+        t_args[i].request = dqueue;
     }
     pthread_t threads[thread_count];
     for (int i = 0; i < thread_count; ++i)
@@ -113,8 +119,10 @@ int main(int argc, char *argv[])
         RequestStruct *request = malloc(sizeof(RequestStruct));
         request->connfd = connfd;
         gettimeofday(&request->arrival_time, NULL);
-        addToWaitingQueue(requests, request);
-
+        pthread_mutex_lock(&dqueue->mutex);
+        addToWaitingQueue(dqueue, request);
+        pthread_cond_signal(&dqueue->not_empty);
+        pthread_mutex_unlock(&dqueue->mutex);
         //
         // HW3: In general, don't handle the request in the main thread.
         // Save the relevant info in a buffer and have one of the worker threads

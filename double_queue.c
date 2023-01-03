@@ -30,12 +30,11 @@ void dqueueDestroy(DQueue *dqueue)
 
 void addToWaitingQueue(DQueue *dqueue, RequestStruct *data)
 {
-    pthread_mutex_lock(&dqueue->mutex);
     int removed = 0;
     RequestStruct *last = NULL;
     if (dqueue->count == dqueue->max_size)
     {
-        // Queue is full
+        // DQueue is full
         switch (dqueue->policy)
         {
         case BLOCK:
@@ -45,7 +44,6 @@ void addToWaitingQueue(DQueue *dqueue, RequestStruct *data)
         case DT:
             Close(data->connfd);
             free(data);
-            pthread_mutex_unlock(&dqueue->mutex);
             return;
             break;
         case DH:
@@ -53,7 +51,6 @@ void addToWaitingQueue(DQueue *dqueue, RequestStruct *data)
             {
                 Close(data->connfd);
                 free(data);
-                pthread_mutex_unlock(&dqueue->mutex);
                 return;
             }
             else
@@ -70,43 +67,35 @@ void addToWaitingQueue(DQueue *dqueue, RequestStruct *data)
             {
                 Close(data->connfd);
                 free(data);
-                pthread_mutex_unlock(&dqueue->mutex);
                 return;
             }
             dqueue->count -= removed;
             break;
         default:
             perror("Policy not found\n");
-            pthread_mutex_unlock(&dqueue->mutex);
             exit(1);
         }
     }
 
     enqueue(dqueue->waiting_queue, data);
     dqueue->count++;
-    pthread_cond_signal(&dqueue->not_empty);
-    pthread_mutex_unlock(&dqueue->mutex);
 }
 
 RequestStruct *addToRunningList(DQueue *dqueue, int thread_id)
 {
-    pthread_mutex_lock(&dqueue->mutex);
     while (isEmpty(dqueue->waiting_queue))
         pthread_cond_wait(&dqueue->not_empty, &dqueue->mutex);
 
     RequestStruct *data = dequeue(dqueue->waiting_queue);
     dqueue->running_list[thread_id] = data;
-    pthread_mutex_unlock(&dqueue->mutex);
     return data;
 }
 
 void removeFromRunning(DQueue *dqueue, int thread_id)
 {
-    pthread_mutex_lock(&dqueue->mutex);
     dqueue->count--;
     RequestStruct *data = dqueue->running_list[thread_id];
+    Close(data->connfd);
     free(data);
     dqueue->running_list[thread_id] = NULL;
-    pthread_cond_signal(&dqueue->not_full);
-    pthread_mutex_unlock(&dqueue->mutex);
 }

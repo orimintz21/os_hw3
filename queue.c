@@ -3,7 +3,7 @@
 #include "request_struct.h"
 #include <stdlib.h>
 #include <stdio.h>
-
+#include "segel.h"
 Queue *queueCreate()
 {
     Queue *q = (Queue *)malloc(sizeof(Queue));
@@ -18,6 +18,7 @@ void queueDestroy(Queue *q)
     while (q->head)
     {
         Node *temp = q->head;
+        Close(q->head->data->connfd);
         q->head = q->head->next;
         free(temp);
     }
@@ -123,15 +124,9 @@ int removeRandom(Queue *queue)
     {
         return -1;
     }
-    else if (queue->count % 2 == 1)
-    {
-        to_remove = (queue->count + 1) / 2;
-    }
-    else
-    {
-        to_remove = queue->count / 2;
-    }
-    int *randoms = randomNodes(queue->count, queue->count);
+    to_remove = queue->count % 2 == 0 ? queue->count / 2 : (queue->count + 1) / 2;
+
+    int *randoms = randomNodes(to_remove, queue->count);
     int i = 0;
     int j = 0;
     Node *temp = queue->head;
@@ -143,6 +138,7 @@ int removeRandom(Queue *queue)
             {
                 queue->head = queue->head->next;
                 queue->head->prev = NULL;
+                Close(temp->data->connfd);
                 free(temp);
                 temp = queue->head;
             }
@@ -150,6 +146,7 @@ int removeRandom(Queue *queue)
             {
                 temp->prev->next = temp->next;
                 temp->next->prev = temp->prev;
+                Close(temp->data->connfd);
                 free(temp);
                 temp = temp->next;
             }
