@@ -69,14 +69,14 @@ void *thread_func(void *t_args)
 
     while (1)
     {
-        RequestStruct *data = addToRunningList(request);
+        RequestStruct *data = addToRunningList(request, args->id);
         gettimeofday(&end_time, NULL);
         int connfd = data->connfd;
         stats.arrival_time = data->arrival_time;
         timersub(&end_time, &stats.arrival_time, &stats.dispatch_time);
 
         requestHandle(connfd, &stats);
-        removeFromRunning(request, data);
+        removeFromRunning(request, args->id);
         Close(connfd);
     }
     return NULL;
@@ -91,7 +91,7 @@ int main(int argc, char *argv[])
 
     getargs(&port, &thread_count, &queue_size, &policy, argc, argv);
 
-    DQueue *requests = dqueueCreate(queue_size, policy);
+    DQueue *requests = dqueueCreate(queue_size, policy, thread_count);
     threadArgs t_args[thread_count];
     for (int i = 0; i < thread_count; ++i)
     {

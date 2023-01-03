@@ -18,7 +18,7 @@ typedef enum
 typedef struct
 {
     Queue *waiting_queue;
-    LinkedList *running_list;
+    RequestStruct **running_list;
     int max_size;
     Policy policy;
     int count;
@@ -28,11 +28,11 @@ typedef struct
 
 } DQueue;
 
-DQueue *dqueueCreate(int max_size, Policy policy);
+DQueue *dqueueCreate(int max_size, Policy policy, int num_threads);
 void dqueueDestroy(DQueue *dqueue);
 void addToWaitingQueue(DQueue *dqueue, RequestStruct *data);
-RequestStruct *addToRunningList(DQueue *dqueue);
+RequestStruct *addToRunningList(DQueue *dqueue, int thread_id);
 void removeFromWaiting(DQueue *dqueue);
-void removeFromRunning(DQueue *dqueue, RequestStruct *data);
+void removeFromRunning(DQueue *dqueue, int thread_id);
 
 #endif // DOUBLE_QUEUE_H

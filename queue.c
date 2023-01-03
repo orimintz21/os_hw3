@@ -4,151 +4,159 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-Queue *queueCreate(int max_size)
+Queue *queueCreate()
 {
-    Queue *queue = malloc(sizeof(Queue));
-    queue->data = malloc(max_size * sizeof(RequestStruct *));
-    queue->front = 0;
-    queue->rear = 0;
-    queue->max_size = max_size;
-    // pthread_mutex_init(&queue->mutex, NULL);
-    // pthread_cond_init(&queue->cond, NULL);
-    return queue;
+    Queue *q = (Queue *)malloc(sizeof(Queue));
+    q->head = NULL;
+    q->tail = NULL;
+    q->count = 0;
+    return q;
 }
 
-void queueDestroy(Queue *queue)
+void queueDestroy(Queue *q)
 {
-    // pthread_cond_destroy(&queue->cond);
-    // pthread_mutex_destroy(&queue->mutex);
-    free(queue->data);
-    free(queue);
+    while (q->head)
+    {
+        Node *temp = q->head;
+        q->head = q->head->next;
+        free(temp);
+    }
+    free(q);
 }
 
-int enqueue(Queue *queue, RequestStruct *value)
+void enqueue(Queue *q, RequestStruct *data)
 {
-    // pthread_mutex_lock(&queue->mutex);
-    if ((queue->rear + 1) % queue->max_size == queue->front)
+    Node *new_node = (Node *)malloc(sizeof(Node));
+    new_node->data = data;
+    new_node->next = NULL;
+    new_node->prev = q->tail;
+    if (q->tail)
     {
-        // Queue is full
-        // pthread_mutex_unlock(&queue->mutex);
-        return 0;
+        q->tail->next = new_node;
     }
-    queue->data[queue->rear] = value;
-    queue->rear = (queue->rear + 1) % queue->max_size;
-    // pthread_cond_signal(&queue->cond);
-    // pthread_mutex_unlock(&queue->mutex);
-    return 1;
+    q->tail = new_node;
+    if (!q->head)
+    {
+        q->head = new_node;
+    }
+    q->count++;
 }
 
-RequestStruct *dequeue(Queue *queue)
+RequestStruct *dequeue(Queue *q)
 {
-    // pthread_mutex_lock(&queue->mutex);
-    // while (queue->front == queue->rear)
-    // {
-    // Queue is empty
-    // pthread_cond_wait(&queue->cond, &queue->mutex);
-    // }
-
-    RequestStruct *value = queue->data[queue->front];
-    queue->front = (queue->front + 1) % queue->max_size;
-    // pthread_mutex_unlock(&queue->mutex);
-    return value;
-}
-
-void moveToStart(Queue *queue)
-{
-    int size = (queue->rear - queue->front + queue->max_size) % queue->max_size;
-
-    // create a new array to hold the elements
-    RequestStruct **newData = (RequestStruct **)malloc(sizeof(RequestStruct *) * size);
-    int newIndex = 0;
-
-    // copy the elements to the new array
-    for (int i = 0; i < queue->max_size; i++)
+    if (!q->head)
     {
-        if (i < size)
-        {
-            int index = (queue->front + i) % queue->max_size;
-            newData[newIndex++] = queue->data[index];
-        }
-        else
-        {
-            newData[newIndex++] = NULL;
-        }
+        return NULL;
     }
-
-    // update the front and rear pointers
-    queue->front = 0;
-    queue->rear = size;
-
-    // free the old data array and update the queue to use the new array
-    free(queue->data);
-    queue->data = newData;
-}
-
-int removeRandom(Queue *queue)
-{
-    // pthread_mutex_lock(&queue->mutex);
-    moveToStart(queue);
-    int size = (queue->rear - queue->front + queue->max_size) % queue->max_size;
-    int index = rand() % queue->max_size;
-
-    // make that num_to_remove is rounded up
-    if (size % 2) // size if odd
+    Node *temp = q->head;
+    q->head = q->head->next;
+    if (q->head)
     {
-        size++;
+        q->head->prev = NULL;
     }
-    int num_to_remove = size / 2;
-
-    RequestStruct **temp_data = (RequestStruct **)malloc(sizeof(RequestStruct *) * queue->max_size);
-    for (int i = 0; i < queue->max_size; i++)
-    {
-        temp_data[i] = queue->data[i];
-    }
-
-    while (num_to_remove > 0)
-    {
-        if (temp_data[index] != NULL)
-        {
-            temp_data[index] = NULL;
-            num_to_remove--;
-        }
-        index = rand() % queue->max_size;
-    }
-    int j = 0;
-    int front = -1;
-    for (int i = 0; i < queue->max_size; i++)
-    {
-        if (temp_data[i] != NULL)
-        {
-            if (front == -1)
-            {
-                front = i;
-            }
-            if (queue->data[j] != NULL)
-            {
-                free(queue->data[j]);
-            }
-            queue->data[j] = temp_data[i];
-            j++;
-        }
-    }
-    queue->front = front;
-    queue->rear = j;
-    for (int i = j; i < queue->max_size; i++)
-    {
-        if (queue->data[i] != NULL)
-        {
-            free(queue->data[i]);
-        }
-        queue->data[i] = NULL;
-    }
-    free(temp_data);
-    // pthread_mutex_unlock(&queue->mutex);
-    return size / 2;
+    RequestStruct *data = temp->data;
+    free(temp);
+    q->count--;
+    return data;
 }
 
 bool isEmpty(Queue *queue)
 {
-    return queue->front == queue->rear;
+    return queue->count == 0;
+}
+
+int *randomNodes(int n, int k)
+{
+    int *numbers = malloc(sizeof(int) * n);
+    int i, j, num;
+    bool found;
+
+    /* Seed the random number generator */
+    srand(time(NULL));
+
+    /* Generate the random numbers */
+    for (i = 0; i < n; i++)
+    {
+        do
+        {
+            num = rand() % (k + 1);
+            found = false;
+            for (j = 0; j < i; j++)
+            {
+                if (numbers[j] == num)
+                {
+                    found = true;
+                    break;
+                }
+            }
+        } while (found);
+        numbers[i] = num;
+    }
+
+    /* Sort the numbers */
+    for (i = 0; i < n - 1; i++)
+    {
+        for (j = i + 1; j < n; j++)
+        {
+            if (numbers[i] > numbers[j])
+            {
+                int temp = numbers[i];
+                numbers[i] = numbers[j];
+                numbers[j] = temp;
+            }
+        }
+    }
+
+    /* Print the numbers */
+    for (i = 0; i < n; i++)
+    {
+        printf("%d\n", numbers[i]);
+    }
+
+    return numbers;
+}
+
+int removeRandom(Queue *queue)
+{
+    int to_remove = -1;
+    if (queue->count == 0)
+    {
+        return -1;
+    }
+    else if (queue->count % 2 == 1)
+    {
+        to_remove = (queue->count + 1) / 2;
+    }
+    else
+    {
+        to_remove = queue->count / 2;
+    }
+    int *randoms = randomNodes(queue->count, queue->count);
+    int i = 0;
+    int j = 0;
+    Node *temp = queue->head;
+    while (i < queue->count)
+    {
+        if (i == randoms[j])
+        {
+            if (i == 0)
+            {
+                queue->head = queue->head->next;
+                queue->head->prev = NULL;
+                free(temp);
+                temp = queue->head;
+            }
+            else
+            {
+                temp->prev->next = temp->next;
+                temp->next->prev = temp->prev;
+                free(temp);
+                temp = temp->next;
+            }
+            j++;
+        }
+        i++;
+    }
+    queue->count = queue->count - j;
+    return to_remove;
 }

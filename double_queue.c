@@ -4,11 +4,11 @@
 #include <pthread.h>
 #include "segel.h"
 
-DQueue *dqueueCreate(int max_size, Policy policy)
+DQueue *dqueueCreate(int max_size, Policy policy, int num_threads)
 {
     DQueue *dqueue = malloc(sizeof(DQueue));
-    dqueue->waiting_queue = queueCreate(max_size);
-    dqueue->running_list = listCreate();
+    dqueue->waiting_queue = queueCreate();
+    dqueue->running_list = malloc(sizeof(RequestStruct *) * num_threads);
     dqueue->count = 0;
     dqueue->max_size = max_size;
     dqueue->policy = policy;
@@ -24,7 +24,7 @@ void dqueueDestroy(DQueue *dqueue)
     pthread_cond_destroy(&dqueue->not_empty);
     pthread_mutex_destroy(&dqueue->mutex);
     queueDestroy(dqueue->waiting_queue);
-    listDestroy(dqueue->running_list);
+    free(dqueue->running_list);
     free(dqueue);
 }
 
@@ -66,6 +66,13 @@ void addToWaitingQueue(DQueue *dqueue, RequestStruct *data)
             break;
         case RANDOM:
             removed = removeRandom(dqueue->waiting_queue);
+            if (removed == -1)
+            {
+                Close(data->connfd);
+                free(data);
+                pthread_mutex_unlock(&dqueue->mutex);
+                return;
+            }
             dqueue->count -= removed;
             break;
         default:
@@ -81,23 +88,25 @@ void addToWaitingQueue(DQueue *dqueue, RequestStruct *data)
     pthread_mutex_unlock(&dqueue->mutex);
 }
 
-RequestStruct *addToRunningList(DQueue *dqueue)
+RequestStruct *addToRunningList(DQueue *dqueue, int thread_id)
 {
     pthread_mutex_lock(&dqueue->mutex);
-    while (dqueue->count == 0)
+    while (isEmpty(dqueue->waiting_queue))
         pthread_cond_wait(&dqueue->not_empty, &dqueue->mutex);
+
     RequestStruct *data = dequeue(dqueue->waiting_queue);
-    listAdd(dqueue->running_list, data);
+    dqueue->running_list[thread_id] = data;
     pthread_mutex_unlock(&dqueue->mutex);
     return data;
 }
 
-void removeFromRunning(DQueue *dqueue, RequestStruct *data)
+void removeFromRunning(DQueue *dqueue, int thread_id)
 {
     pthread_mutex_lock(&dqueue->mutex);
     dqueue->count--;
-    removeNode(dqueue->running_list, data);
+    RequestStruct *data = dqueue->running_list[thread_id];
     free(data);
+    dqueue->running_list[thread_id] = NULL;
     pthread_cond_signal(&dqueue->not_full);
     pthread_mutex_unlock(&dqueue->mutex);
 }

@@ -6,20 +6,23 @@
 #include "request_struct.h"
 #include <stdbool.h>
 
-typedef struct
+typedef struct node
 {
-    RequestStruct **data;
-    int front;
-    int rear;
-    int max_size;
-    // pthread_mutex_t mutex;
-    // pthread_cond_t cond;
+    RequestStruct *data;
+    struct node *next;
+    struct node *prev;
+} Node;
 
+typedef struct queue
+{
+    Node *head;
+    Node *tail;
+    int count;
 } Queue;
 
-Queue *queueCreate(int max_size);
+Queue *queueCreate();
 void queueDestroy(Queue *queue);
-int enqueue(Queue *queue, RequestStruct *data);
+void enqueue(Queue *queue, RequestStruct *data);
 RequestStruct *dequeue(Queue *queue);
 int removeRandom(Queue *queue);
 bool isEmpty(Queue *queue);
