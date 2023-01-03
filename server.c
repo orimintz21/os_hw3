@@ -1,11 +1,11 @@
 #include "segel.h"
 #include "request.h"
 #include <pthread.h>
-#include "queue.h"
 #include "double_queue.h"
 #include <string.h>
 #include "request_struct.h"
 #include "stats.h"
+#include <sys/time.h>
 //
 // server.c: A very, very simple web server
 //
@@ -73,8 +73,7 @@ void *thread_func(void *t_args)
         gettimeofday(&end_time, NULL);
         int connfd = data->connfd;
         stats.arrival_time = data->arrival_time;
-        stats.dispatch_time.tv_sec = end_time.tv_sec - stats.arrival_time.tv_sec;
-        stats.dispatch_time.tv_usec = end_time.tv_usec - stats.arrival_time.tv_usec;
+        timersub(&end_time, &stats.arrival_time, &stats.dispatch_time);
 
         requestHandle(connfd, &stats);
         removeFromRunning(request, data);
@@ -93,13 +92,16 @@ int main(int argc, char *argv[])
     getargs(&port, &thread_count, &queue_size, &policy, argc, argv);
 
     DQueue *requests = dqueueCreate(queue_size, policy);
+    threadArgs t_args[thread_count];
+    for (int i = 0; i < thread_count; ++i)
+    {
+        t_args[i].id = i;
+        t_args[i].request = requests;
+    }
     pthread_t threads[thread_count];
     for (int i = 0; i < thread_count; ++i)
     {
-        threadArgs t_args;
-        t_args.id = i;
-        t_args.request = requests;
-        pthread_create(&threads[i], NULL, thread_func, (void *)(&t_args));
+        pthread_create(&threads[i], NULL, thread_func, (void *)(&t_args[i]));
     }
 
     listenfd = Open_listenfd(port);

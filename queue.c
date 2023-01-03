@@ -92,6 +92,12 @@ int removeRandom(Queue *queue)
     moveToStart(queue);
     int size = (queue->rear - queue->front + queue->max_size) % queue->max_size;
     int index = rand() % queue->max_size;
+
+    // make that num_to_remove is rounded up
+    if (size % 2) // size if odd
+    {
+        size++;
+    }
     int num_to_remove = size / 2;
 
     RequestStruct **temp_data = (RequestStruct **)malloc(sizeof(RequestStruct *) * queue->max_size);

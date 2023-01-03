@@ -32,7 +32,7 @@ void addToWaitingQueue(DQueue *dqueue, RequestStruct *data)
 {
     pthread_mutex_lock(&dqueue->mutex);
     int removed = 0;
-
+    RequestStruct *last = NULL;
     if (dqueue->count == dqueue->max_size)
     {
         // Queue is full
@@ -44,10 +44,25 @@ void addToWaitingQueue(DQueue *dqueue, RequestStruct *data)
             break;
         case DT:
             Close(data->connfd);
+            free(data);
+            pthread_mutex_unlock(&dqueue->mutex);
+            return;
             break;
         case DH:
-            dequeue(dqueue->waiting_queue);
-            dqueue->count--;
+            if (isEmpty(dqueue->waiting_queue))
+            {
+                Close(data->connfd);
+                free(data);
+                pthread_mutex_unlock(&dqueue->mutex);
+                return;
+            }
+            else
+            {
+                last = dequeue(dqueue->waiting_queue);
+                Close(last->connfd);
+                free(last);
+                dqueue->count--;
+            }
             break;
         case RANDOM:
             removed = removeRandom(dqueue->waiting_queue);
@@ -60,11 +75,8 @@ void addToWaitingQueue(DQueue *dqueue, RequestStruct *data)
         }
     }
 
-    int ans = enqueue(dqueue->waiting_queue, data);
-    if (ans)
-    {
-        dqueue->count++;
-    }
+    enqueue(dqueue->waiting_queue, data);
+    dqueue->count++;
     pthread_cond_signal(&dqueue->not_empty);
     pthread_mutex_unlock(&dqueue->mutex);
 }

@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "request_struct.h": "c",
+        "stats.h": "c"
+    }
+}
