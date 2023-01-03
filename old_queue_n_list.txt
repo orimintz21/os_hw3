@@ -1,0 +1,283 @@
+// List.c
+#include <pthread.h>
+#include "list.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include "request_struct.h"
+
+// Initialize a linked list
+LinkedList *listCreate()
+{
+    LinkedList *list = malloc(sizeof(LinkedList));
+    list->head = NULL;
+    // pthread_mutex_init(&list->lock, NULL);
+    return list;
+}
+
+void listDestroy(LinkedList *list)
+{
+    // pthread_mutex_lock(&list->lock);
+    Node *curr = list->head;
+    while (curr != NULL)
+    {
+        Node *temp = curr;
+        curr = curr->next;
+        free(temp);
+    }
+    list->head = NULL;
+    // pthread_mutex_unlock(&list->lock);
+    // pthread_mutex_destroy(&list->lock);
+    free(list);
+}
+
+// Insert a new node at the beginning of the linked list
+void listAdd(LinkedList *list, RequestStruct *data)
+{
+    // pthread_mutex_lock(&list->lock);
+    Node *newNode = (Node *)malloc(sizeof(Node));
+    newNode->data = data;
+    newNode->next = list->head;
+    list->head = newNode;
+    // pthread_mutex_unlock(&list->lock);
+}
+
+// Remove a node with the specified data value from the linked list
+void removeNode(LinkedList *list, RequestStruct *data)
+{
+    // pthread_mutex_lock(&list->lock);
+    Node *prev = NULL;
+    Node *curr = list->head;
+    while (curr != NULL)
+    {
+        if (curr->data == data)
+        {
+            if (prev == NULL)
+            {
+                // Remove the first node
+                list->head = curr->next;
+            }
+            else
+            {
+                // Remove a node other than the first
+                prev->next = curr->next;
+            }
+            free(curr);
+            break;
+        }
+        prev = curr;
+        curr = curr->next;
+    }
+    // pthread_mutex_unlock(&list->lock);
+}
+//
+
+// list.h
+#ifndef LIST_H
+#define LIST_H
+
+#include <pthread.h>
+#include "request_struct.h"
+typedef struct Node
+{
+    RequestStruct *data;
+    struct Node *next;
+} Node;
+
+typedef struct LinkedList
+{
+    Node *head;
+    // pthread_mutex_t lock;
+} LinkedList;
+
+LinkedList *listCreate();
+void listDestroy(LinkedList *list);
+void listAdd(LinkedList *list, RequestStruct *data);
+void removeNode(LinkedList *list, RequestStruct *data);
+
+#endif // LIST_H
+
+// queue.c
+
+#include "queue.h"
+#include <pthread.h>
+#include "request_struct.h"
+#include <stdlib.h>
+#include <stdio.h>
+
+Queue *queueCreate(int max_size)
+{
+    Queue *queue = malloc(sizeof(Queue));
+    queue->data = malloc(max_size * sizeof(RequestStruct *));
+    queue->front = 0;
+    queue->rear = 0;
+    queue->max_size = max_size;
+    // pthread_mutex_init(&queue->mutex, NULL);
+    // pthread_cond_init(&queue->cond, NULL);
+    return queue;
+}
+
+void queueDestroy(Queue *queue)
+{
+    // pthread_cond_destroy(&queue->cond);
+    // pthread_mutex_destroy(&queue->mutex);
+    free(queue->data);
+    free(queue);
+}
+
+int enqueue(Queue *queue, RequestStruct *value)
+{
+    // pthread_mutex_lock(&queue->mutex);
+    if ((queue->rear + 1) % queue->max_size == queue->front)
+    {
+        // Queue is full
+        // pthread_mutex_unlock(&queue->mutex);
+        return 0;
+    }
+    queue->data[queue->rear] = value;
+    queue->rear = (queue->rear + 1) % queue->max_size;
+    // pthread_cond_signal(&queue->cond);
+    // pthread_mutex_unlock(&queue->mutex);
+    return 1;
+}
+
+RequestStruct *dequeue(Queue *queue)
+{
+    // pthread_mutex_lock(&queue->mutex);
+    // while (queue->front == queue->rear)
+    // {
+    // Queue is empty
+    // pthread_cond_wait(&queue->cond, &queue->mutex);
+    // }
+
+    RequestStruct *value = queue->data[queue->front];
+    queue->front = (queue->front + 1) % queue->max_size;
+    // pthread_mutex_unlock(&queue->mutex);
+    return value;
+}
+
+void moveToStart(Queue *queue)
+{
+    int size = (queue->rear - queue->front + queue->max_size) % queue->max_size;
+
+    // create a new array to hold the elements
+    RequestStruct **newData = (RequestStruct **)malloc(sizeof(RequestStruct *) * size);
+    int newIndex = 0;
+
+    // copy the elements to the new array
+    for (int i = 0; i < queue->max_size; i++)
+    {
+        if (i < size)
+        {
+            int index = (queue->front + i) % queue->max_size;
+            newData[newIndex++] = queue->data[index];
+        }
+        else
+        {
+            newData[newIndex++] = NULL;
+        }
+    }
+
+    // update the front and rear pointers
+    queue->front = 0;
+    queue->rear = size;
+
+    // free the old data array and update the queue to use the new array
+    free(queue->data);
+    queue->data = newData;
+}
+
+int removeRandom(Queue *queue)
+{
+    // pthread_mutex_lock(&queue->mutex);
+    moveToStart(queue);
+    int size = (queue->rear - queue->front + queue->max_size) % queue->max_size;
+    int index = rand() % queue->max_size;
+
+    // make that num_to_remove is rounded up
+    if (size % 2) // size if odd
+    {
+        size++;
+    }
+    int num_to_remove = size / 2;
+
+    RequestStruct **temp_data = (RequestStruct **)malloc(sizeof(RequestStruct *) * queue->max_size);
+    for (int i = 0; i < queue->max_size; i++)
+    {
+        temp_data[i] = queue->data[i];
+    }
+
+    while (num_to_remove > 0)
+    {
+        if (temp_data[index] != NULL)
+        {
+            temp_data[index] = NULL;
+            num_to_remove--;
+        }
+        index = rand() % queue->max_size;
+    }
+    int j = 0;
+    int front = -1;
+    for (int i = 0; i < queue->max_size; i++)
+    {
+        if (temp_data[i] != NULL)
+        {
+            if (front == -1)
+            {
+                front = i;
+            }
+            if (queue->data[j] != NULL)
+            {
+                free(queue->data[j]);
+            }
+            queue->data[j] = temp_data[i];
+            j++;
+        }
+    }
+    queue->front = front;
+    queue->rear = j;
+    for (int i = j; i < queue->max_size; i++)
+    {
+        if (queue->data[i] != NULL)
+        {
+            free(queue->data[i]);
+        }
+        queue->data[i] = NULL;
+    }
+    free(temp_data);
+    // pthread_mutex_unlock(&queue->mutex);
+    return size / 2;
+}
+
+bool isEmpty(Queue *queue)
+{
+    return queue->front == queue->rear;
+}
+
+// queue.h
+#ifndef QUEUE_H
+#define QUEUE_H
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+#include "request_struct.h"
+#include <stdbool.h>
+
+typedef struct
+{
+    RequestStruct **data;
+    int front;
+    int rear;
+    int max_size;
+    // pthread_mutex_t mutex;
+    // pthread_cond_t cond;
+
+} Queue;
+
+Queue *queueCreate(int max_size);
+void queueDestroy(Queue *queue);
+int enqueue(Queue *queue, RequestStruct *data);
+RequestStruct *dequeue(Queue *queue);
+int removeRandom(Queue *queue);
+bool isEmpty(Queue *queue);
+
+#endif // QUEUE_H
