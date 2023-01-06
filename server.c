@@ -66,24 +66,13 @@ void *thread_func(void *t_args)
     stats.static_count = 0;
     stats.dynamic_count = 0;
     stats.id = args->id;
-    struct timeval end_time;
 
     while (1)
     {
-        pthread_mutex_lock(&dqueue->mutex);
-        RequestStruct *data = addToRunningList(dqueue, stats.id);
-        gettimeofday(&end_time, NULL);
+        RequestStruct *data = addToRunningList(dqueue, &stats);
         int connfd = data->connfd;
-        stats.arrival_time = data->arrival_time;
-        timersub(&end_time, &stats.arrival_time, &stats.dispatch_time);
-        pthread_mutex_unlock(&dqueue->mutex);
-
         requestHandle(connfd, &stats);
-        // Close(connfd);
-        pthread_mutex_lock(&dqueue->mutex);
         removeFromRunning(dqueue, stats.id);
-        pthread_cond_signal(&dqueue->not_full);
-        pthread_mutex_unlock(&dqueue->mutex);
     }
     return NULL;
 }
@@ -119,14 +108,8 @@ int main(int argc, char *argv[])
         RequestStruct *request = malloc(sizeof(RequestStruct));
         request->connfd = connfd;
         gettimeofday(&request->arrival_time, NULL);
-        pthread_mutex_lock(&dqueue->mutex);
         addToWaitingQueue(dqueue, request);
-        pthread_cond_signal(&dqueue->not_empty);
-        pthread_mutex_unlock(&dqueue->mutex);
-        //
-        // HW3: In general, don't handle the request in the main thread.
-        // Save the relevant info in a buffer and have one of the worker threads
-        // do the work.
-        //
     }
+    dqueueDestroy(dqueue);
+    return 0;
 }

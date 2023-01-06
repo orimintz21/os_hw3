@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include "request_struct.h"
+#include "stats.h"
 
 typedef enum
 {
@@ -21,7 +22,7 @@ typedef struct
     RequestStruct **running_list;
     int max_size;
     Policy policy;
-    int count;
+    int count_running;
     pthread_mutex_t mutex;
     pthread_cond_t not_empty;
     pthread_cond_t not_full;
@@ -31,7 +32,7 @@ typedef struct
 DQueue *dqueueCreate(int max_size, Policy policy, int num_threads);
 void dqueueDestroy(DQueue *dqueue);
 void addToWaitingQueue(DQueue *dqueue, RequestStruct *data);
-RequestStruct *addToRunningList(DQueue *dqueue, int thread_id);
+RequestStruct *addToRunningList(DQueue *dqueue, Stats *stats);
 void removeFromWaiting(DQueue *dqueue);
 void removeFromRunning(DQueue *dqueue, int thread_id);
 

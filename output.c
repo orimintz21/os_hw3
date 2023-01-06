@@ -3,13 +3,12 @@
 #include <assert.h>
 #include <unistd.h>
 
-
 //
 // This program is intended to help you test your web server.
 // You can use it to test that you are correctly having multiple threads
 // handling http requests.
-// 
-
+//
+//! tern back to 5.0!!!!!
 double spinfor = 5.0;
 
 void getargs()
@@ -17,22 +16,23 @@ void getargs()
   char *buf, *p;
 
   /* Extract the four arguments */
-  if ((buf = getenv("QUERY_STRING")) != NULL) {
+  if ((buf = getenv("QUERY_STRING")) != NULL)
+  {
     p = strtok(buf, "&");
-    if (p == NULL) 
+    if (p == NULL)
       return;
     spinfor = atof(p);
     return;
   }
 }
 
-double Time_GetSeconds() {
-    struct timeval t;
-    int rc = gettimeofday(&t, NULL);
-    assert(rc == 0);
-    return (double) ((double)t.tv_sec + (double)t.tv_usec / 1e6);
+double Time_GetSeconds()
+{
+  struct timeval t;
+  int rc = gettimeofday(&t, NULL);
+  assert(rc == 0);
+  return (double)((double)t.tv_sec + (double)t.tv_usec / 1e6);
 }
-
 
 int main(int argc, char *argv[])
 {
@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
   sprintf(content, "<p>Welcome to the CGI program</p>\r\n");
   sprintf(content, "%s<p>My only purpose is to waste time on the server!</p>\r\n", content);
   sprintf(content, "%s<p>I spun for %.2f seconds</p>\r\n", content, t2 - t1);
-  
+
   /* Generate the HTTP response */
   printf("Content-length: %lu\r\n", strlen(content));
   printf("Content-type: text/html\r\n\r\n");
@@ -57,4 +57,3 @@ int main(int argc, char *argv[])
 
   exit(0);
 }
-

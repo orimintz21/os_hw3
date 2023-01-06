@@ -49,13 +49,17 @@ RequestStruct *dequeue(Queue *q)
     {
         return NULL;
     }
+    RequestStruct *data = q->head->data;
     Node *temp = q->head;
     q->head = q->head->next;
     if (q->head)
     {
         q->head->prev = NULL;
     }
-    RequestStruct *data = temp->data;
+    if (q->tail == temp)
+    {
+        q->tail = NULL;
+    }
     free(temp);
     q->count--;
     return data;
@@ -66,94 +70,53 @@ bool isEmpty(Queue *queue)
     return queue->count == 0;
 }
 
-int *randomNodes(int n, int k)
+int removeNthNode(Queue *queue, int n)
 {
-    int *numbers = malloc(sizeof(int) * n);
-    int i, j, num;
-    bool found;
-
-    /* Seed the random number generator */
-    srand(time(NULL));
-
-    /* Generate the random numbers */
-    for (i = 0; i < n; i++)
+    int to_remove = -1;
+    if (n > queue->count)
     {
-        do
-        {
-            num = rand() % (k + 1);
-            found = false;
-            for (j = 0; j < i; j++)
-            {
-                if (numbers[j] == num)
-                {
-                    found = true;
-                    break;
-                }
-            }
-        } while (found);
-        numbers[i] = num;
+        return to_remove;
     }
-
-    /* Sort the numbers */
-    for (i = 0; i < n - 1; i++)
+    Node *temp = queue->head;
+    for (int i = 0; i < n; i++)
     {
-        for (j = i + 1; j < n; j++)
-        {
-            if (numbers[i] > numbers[j])
-            {
-                int temp = numbers[i];
-                numbers[i] = numbers[j];
-                numbers[j] = temp;
-            }
-        }
+        temp = temp->next;
     }
-
-    /* Print the numbers */
-    for (i = 0; i < n; i++)
+    to_remove = temp->data->connfd;
+    if (temp->prev)
     {
-        printf("%d\n", numbers[i]);
+        temp->prev->next = temp->next;
     }
-
-    return numbers;
+    if (temp->next)
+    {
+        temp->next->prev = temp->prev;
+    }
+    if (temp == queue->head)
+    {
+        queue->head = temp->next;
+    }
+    if (temp == queue->tail)
+    {
+        queue->tail = temp->prev;
+    }
+    free(temp);
+    queue->count--;
+    return to_remove;
 }
 
 int removeRandom(Queue *queue)
 {
+    int fd = -1;
     int to_remove = -1;
     if (queue->count == 0)
     {
-        return -1;
+        return to_remove;
     }
-    to_remove = queue->count % 2 == 0 ? queue->count / 2 : (queue->count + 1) / 2;
-
-    int *randoms = randomNodes(to_remove, queue->count);
-    int i = 0;
-    int j = 0;
-    Node *temp = queue->head;
-    while (i < queue->count)
+    to_remove = queue->count / 2 + (queue->count % 2);
+    for (int i = 0; i < to_remove; ++i)
     {
-        if (i == randoms[j])
-        {
-            if (i == 0)
-            {
-                queue->head = queue->head->next;
-                queue->head->prev = NULL;
-                Close(temp->data->connfd);
-                free(temp);
-                temp = queue->head;
-            }
-            else
-            {
-                temp->prev->next = temp->next;
-                temp->next->prev = temp->prev;
-                Close(temp->data->connfd);
-                free(temp);
-                temp = temp->next;
-            }
-            j++;
-        }
-        i++;
+        fd = removeNthNode(queue, abs(rand() % queue->count));
+        Close(fd);
     }
-    queue->count = queue->count - j;
     return to_remove;
 }

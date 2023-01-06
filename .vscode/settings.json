@@ -2,6 +2,8 @@
     "files.associations": {
         "request_struct.h": "c",
         "stats.h": "c",
-        "stdlib.h": "c"
+        "stdlib.h": "c",
+        "segel.h": "c",
+        "time.h": "c"
     }
 }
